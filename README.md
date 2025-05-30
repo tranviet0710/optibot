@@ -39,3 +39,11 @@ Each article will be saved as a Markdown file with:
 - Preserved links and code blocks
 - Frontmatter containing metadata (title, ID, creation date, etc.)
 - No navigation or advertisement elements 
+
+## Vector Store Upload & Chunking
+
+- Markdown files are split into ~1000 character chunks for optimal retrieval.
+- Each chunk is separated by a delimiter (`---`).
+- All chunks are uploaded to OpenAI and attached to a Vector Store.
+- The script logs the number of files and chunks uploaded.
+- You can adjust the chunk size in `upload_to_vectorstore.py` as needed.
