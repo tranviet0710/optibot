@@ -59,7 +59,7 @@ async def fetch_articles() -> List[Dict[str, Any]]:
     ) as session:
         while True:
             try:
-                if page > 3:
+                if page > 5:
                     break
                     
                 print(f"Fetching page {page}...")
