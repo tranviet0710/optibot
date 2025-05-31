@@ -8,6 +8,8 @@ import asyncio
 from typing import List, Dict, Any
 import ssl
 import certifi
+import json
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -21,6 +23,21 @@ ZENDESK_SUBDOMAIN = os.getenv('ZENDESK_SUBDOMAIN')
 OUTPUT_DIR = 'articles'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# Metadata file
+METADATA_FILE = 'article_metadata.json'
+
+def load_metadata():
+    """Load article metadata from file."""
+    if os.path.exists(METADATA_FILE):
+        with open(METADATA_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+def save_metadata(metadata):
+    """Save article metadata to file."""
+    with open(METADATA_FILE, 'w', encoding='utf-8') as f:
+        json.dump(metadata, f, indent=4)
+
 def clean_slug(title: str) -> str:
     """Convert title to a clean slug."""
     # Convert to lowercase and replace spaces with hyphens
@@ -30,69 +47,6 @@ def clean_slug(title: str) -> str:
     # Replace spaces with hyphens
     slug = re.sub(r'\s+', '-', slug)
     return slug
-
-async def fetch_articles() -> List[Dict[str, Any]]:
-    """Fetch articles from Zendesk API using aiohttp."""
-    base_url = f'https://{ZENDESK_SUBDOMAIN}/api/v2/help_center/en-us/articles.json'
-    headers = {
-        'Authorization': f'Basic {ZENDESK_EMAIL}:{ZENDESK_API_TOKEN}',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-    }
-    
-    articles = []
-    page = 1
-    
-    # Create SSL context
-    ssl_context = ssl.create_default_context(cafile=certifi.where())
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
-    
-    # Configure aiohttp client
-    connector = aiohttp.TCPConnector(ssl=ssl_context)
-    timeout = aiohttp.ClientTimeout(total=30)
-    
-    async with aiohttp.ClientSession(
-        connector=connector,
-        timeout=timeout,
-        headers=headers
-    ) as session:
-        while True:
-            try:
-                if page > 2:
-                    break
-                    
-                print(f"Fetching page {page}...")
-                async with session.get(f'{base_url}?page={page}') as response:
-                    response.raise_for_status()
-                    data = await response.json()
-                    
-                    if not data.get('articles'):
-                        print("No articles found in response")
-                        break
-                        
-                    articles.extend(data['articles'])
-                    print(f"Successfully fetched {len(data['articles'])} articles from page {page}")
-                    
-                    if not data.get('next_page'):
-                        print("No more pages available")
-                        break
-                        
-                    page += 1
-                    await asyncio.sleep(2)  # Rate limiting
-                    
-            except aiohttp.ClientError as e:
-                print(f"HTTP Error on page {page}: {str(e)}")
-                if page > 1:
-                    break
-                raise
-            except Exception as e:
-                print(f"Unexpected error on page {page}: {str(e)}")
-                if page > 1:
-                    break
-                raise
-    
-    return articles
 
 def clean_html(html_content: str) -> str:
     """Remove navigation, ads, and unwanted elements from HTML."""
@@ -133,50 +87,165 @@ def convert_to_markdown(html_content: str) -> str:
 
     return markdown.strip()
 
-async def process_articles():
-    """Process and save articles."""
-    try:
-        articles = await fetch_articles()
-        if not articles:
-            print("No articles were fetched. Please check your credentials and connection.")
-            return
-            
-        print(f"Found {len(articles)} articles")
-        
-        for article in articles:
-            try:
-                title = article['title']
-                slug = clean_slug(title)
-                content = article['body']
-                
-                # Convert to markdown
-                markdown_content = convert_to_markdown(content)
-                
-                # Add frontmatter
-                frontmatter = f"""---
-title: {title}
-id: {article['id']}
-created_at: {article['created_at']}
-updated_at: {article['updated_at']}
----
+async def fetch_articles() -> List[Dict[str, Any]]:
+    """Fetch articles from Zendesk API using aiohttp and handle delta."""
+    base_url = f'https://{ZENDESK_SUBDOMAIN}/api/v2/help_center/en-us/articles.json'
+    headers = {
+        'Authorization': f'Basic {ZENDESK_EMAIL}:{ZENDESK_API_TOKEN}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+    }
+    
+    articles_to_process = []
+    page = 1
+    
+    # Load existing metadata
+    existing_metadata = load_metadata()
+    new_metadata = {}
+    
+    added_count = 0
+    updated_count = 0
+    skipped_count = 0
 
-"""
-                full_content = frontmatter + markdown_content
-                
-                # Save to file
-                output_path = os.path.join(OUTPUT_DIR, f"{slug}.md")
-                with open(output_path, 'w', encoding='utf-8') as f:
-                    f.write(full_content)
-                
-                print(f"Saved: {output_path}")
-                
+    # Create SSL context
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE # Consider removing or making configurable for better security
+
+    # Configure aiohttp client
+    connector = aiohttp.TCPConnector(ssl=ssl_context)
+    timeout = aiohttp.ClientTimeout(total=60) # Increased timeout
+
+    async with aiohttp.ClientSession(
+        connector=connector,
+        timeout=timeout,
+        headers=headers
+    ) as session:
+        while True:
+            try:
+                print(f"Fetching page {page}...")
+                async with session.get(f'{base_url}?page={page}') as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    
+                    if not data.get('articles'):
+                        print("No articles found in response")
+                        break
+                    
+                    for article in data['articles']:
+                        article_id = str(article['id'])
+                        updated_at = article['updated_at']
+
+                        new_metadata[article_id] = updated_at
+
+                        if article_id not in existing_metadata:
+                            print(f"New article found: {article['title']}")
+                            articles_to_process.append(article)
+                            added_count += 1
+                        elif existing_metadata[article_id] != updated_at:
+                            print(f"Article updated: {article['title']}")
+                            articles_to_process.append(article)
+                            updated_count += 1
+                        else:
+                            skipped_count += 1
+                            print(f"Skipping article: {article['title']}") # Optional: uncomment for verbose logging
+                    
+                    print(f"Successfully fetched {len(data['articles'])} articles from page {page}")
+                    
+                    if not data.get('next_page'):
+                        print("No more pages available")
+                        break
+                    
+                    page += 1
+                    await asyncio.sleep(2)  # Rate limiting
+                    
+            except aiohttp.ClientError as e:
+                print(f"HTTP Error on page {page}: {str(e)}")
+                # If it's the first page, raise the error
+                if page == 1:
+                     raise
+                # Otherwise, break and process what we have
+                break
             except Exception as e:
-                print(f"Error processing article {article.get('id', 'unknown')}: {str(e)}")
-                continue
+                print(f"Unexpected error on page {page}: {str(e)}")
+                if page == 1:
+                    raise
+                break
+    
+    print(f"\n--- Summary ---")
+    print(f"Articles Added: {added_count}")
+    print(f"Articles Updated: {updated_count}")
+    print(f"Articles Skipped: {skipped_count}")
+    print(f"Total articles to process: {len(articles_to_process)}")
+    print(f"---------------")
+    
+    # Save the new metadata for the next run
+    save_metadata(new_metadata)
+    print(f"Saved updated metadata to {METADATA_FILE}")
+    
+    return articles_to_process
+
+async def process_articles(articles):
+    """Process and save articles."""
+    if not articles:
+        print("No new or updated articles to process.")
+        # Clear the articles directory if you only want delta files for upload
+        for item in os.listdir(OUTPUT_DIR):
+            item_path = os.path.join(OUTPUT_DIR, item)
+            if os.path.isfile(item_path):
+                os.remove(item_path)
+        return
+
+    print(f"Processing {len(articles)} new/updated articles...")
+
+    # Clear the output directory to ensure only delta files are present for upload
+    for item in os.listdir(OUTPUT_DIR):
+        item_path = os.path.join(OUTPUT_DIR, item)
+        if os.path.isfile(item_path):
+            os.remove(item_path)
+            print(f"Cleared old file: {item_path}")
+
+    for article in articles:
+        try:
+            title = article['title']
+            slug = clean_slug(title)
+            content = article['body']
             
+            # Convert to markdown
+            markdown_content = convert_to_markdown(content)
+            
+            # Add frontmatter
+            frontmatter = f"""---
+                        title: {title}
+                        id: {article['id']}
+                        created_at: {article['created_at']}
+                        updated_at: {article['updated_at']}
+                        ---
+
+                        """
+            full_content = frontmatter + markdown_content
+            
+            # Save to file
+            output_path = os.path.join(OUTPUT_DIR, f"{slug}.md")
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(full_content)
+            
+            print(f"Saved: {output_path}")
+            
+        except Exception as e:
+            print(f"Error processing article {article.get('id', 'unknown')}: {str(e)}")
+            continue
+
+async def main_flow():
+    """Main asynchronous flow."""
+    try:
+        articles_to_process = await fetch_articles()
+        await process_articles(articles_to_process)
+
     except Exception as e:
-        print(f"Error processing articles: {str(e)}")
-        raise
+        print(f"An error occurred during the fetch/process step: {str(e)}")
+        # Exit with a non-zero code to indicate failure
+        # sys.exit(1)
 
 if __name__ == "__main__":
-    asyncio.run(process_articles()) 
+    asyncio.run(main_flow())

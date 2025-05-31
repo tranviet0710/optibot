@@ -1,2 +1,4 @@
 .env
 env/
+articles/
+article_metadata.json

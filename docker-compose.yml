@@ -9,7 +9,6 @@ services:
     container_name: optisigns-bot-container
     env_file:
       - .env
-    # Uncomment the next lines if you want to mount your code for live development
-    # volumes:
-    #   - .:/app
+    volumes:
+      - ./metadata_storage:/app
     command: python main.py
