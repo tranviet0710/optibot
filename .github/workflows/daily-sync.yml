@@ -1,0 +1,14 @@
+name: Optisign Chat Bot Once A Day Running Schedule
+
+on:
+  schedule:
+    - cron: '0 16 * * *' # Every day at 0:00 AM UTC
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger DigitalOcean Deploy
+        run: |
+          curl -X POST "https://api.digitalocean.com/v2/apps/YOUR_APP_ID/deployments" \
+            -H "Authorization: Bearer ${{ secrets.DIGITALOCEAN_API_TOKEN }}"
