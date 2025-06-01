@@ -5,10 +5,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: optisigns-bot
-    container_name: optisigns-bot-container
+    image: optisigns-bot:latest # Name the image
+    container_name: optisigns-bot-container # Name the container
     env_file:
-      - .env
-    volumes:
-      - ./metadata_storage:/app
-    command: python main.py
+      - .env # Load environment variables from .env file
+    restart: "no" # Explicitly set no restart policy
+    command: python main.py # Command to run when the container starts
