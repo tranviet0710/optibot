@@ -11,3 +11,9 @@ services:
       - .env # Load environment variables from .env file
     restart: "no" # Explicitly set no restart policy
     command: python main.py # Command to run when the container starts
+    volumes:
+      - optisign-chatbot-data:/app
+
+volumes:
+  optisign-chatbot-data:
+    name: optisignsData

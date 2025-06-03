@@ -182,7 +182,17 @@ async def fetch_articles() -> List[Dict[str, Any]]:
     # Save the new metadata for the next run
     save_metadata(new_metadata)
     print(f"Saved updated metadata to {METADATA_FILE}")
-    
+
+    # Log summary to file
+    log_file_path = 'log.txt'
+    with open(log_file_path, 'a', encoding='utf-8') as log_file:
+        log_file.write(f"\n--- Run at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
+        log_file.write(f"\nArticles Added: {added_count}")
+        log_file.write(f"\nArticles Updated: {updated_count}")
+        log_file.write(f"\nArticles Skipped: {skipped_count}")
+        log_file.write(f"\nTotal articles to process: {len(articles_to_process)}")
+        log_file.write(f"\n---------------")
+
     return articles_to_process
 
 async def process_articles(articles):

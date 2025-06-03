@@ -25,7 +25,7 @@ COPY . .
 
 # Make the persistent data directory if it doesn't exist (for metadata and logs)
 # This is where the volume will be mounted by Docker Compose or docker run -v
-# RUN mkdir -p /app/
+RUN mkdir -p /app/
 
 # Run main.py when the container launches
 CMD ["python", "main.py"] 
