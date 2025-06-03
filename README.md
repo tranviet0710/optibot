@@ -98,4 +98,4 @@ http://164.92.100.157/log.txt
 
 ## Screenshot of Playground answer
 
-![Playground Answer](screenshot.png)
+![Playground Answer](Screenshot.png)
