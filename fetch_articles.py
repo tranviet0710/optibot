@@ -10,6 +10,7 @@ import ssl
 import certifi
 import json
 from datetime import datetime
+import pytz
 
 # Load environment variables
 load_dotenv()
@@ -183,15 +184,31 @@ async def fetch_articles() -> List[Dict[str, Any]]:
     save_metadata(new_metadata)
     print(f"Saved updated metadata to {METADATA_FILE}")
 
+    # Get current UTC time
+    utc_now = datetime.utcnow()
+    # Define the Vietnamese timezone
+    vietnam_tz = pytz.timezone('Asia/Ho_Chi_Minh')
+    # Convert UTC time to Vietnamese time
+    utc = pytz.timezone('UTC')
+    vietnam_now = utc.localize(utc_now).astimezone(vietnam_tz)
+    # Format the time
+    timestamp_str = vietnam_now.strftime('%Y-%m-%d %H:%M:%S')
+
     # Log summary to file
     log_file_path = 'log.txt'
     with open(log_file_path, 'a', encoding='utf-8') as log_file:
-        log_file.write(f"\n--- Run at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
+        log_file.write(f"\n--- Run at {timestamp_str} VST ---")
         log_file.write(f"\nArticles Added: {added_count}")
         log_file.write(f"\nArticles Updated: {updated_count}")
         log_file.write(f"\nArticles Skipped: {skipped_count}")
         log_file.write(f"\nTotal articles to process: {len(articles_to_process)}")
         log_file.write(f"\n---------------")
+        print(f"\n--- Run at {timestamp_str} VST ---")
+        print(f"\nArticles Added: {added_count}")
+        print(f"\nArticles Updated: {updated_count}")
+        print(f"\nArticles Skipped: {skipped_count}")
+        print(f"\nTotal articles to process: {len(articles_to_process)}")
+        print(f"\n---------------")
 
     return articles_to_process
 
