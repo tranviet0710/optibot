@@ -1,6 +1,11 @@
 let thread_id = null;
 let selectedFile = null;
 
+const OPTIBOT_AVATAR =
+  "https://optibot-assistant.optisigns.com/avatars/OptiBot";
+const USER_AVATAR =
+  "https://static.vecteezy.com/system/resources/thumbnails/009/734/564/small_2x/default-avatar-profile-icon-of-social-media-user-vector.jpg";
+
 // Load thread_id from localStorage if available
 window.onload = function () {
   thread_id = localStorage.getItem("optibot_thread_id");
@@ -17,7 +22,8 @@ async function sendMessage() {
   addMessage(
     messageText,
     true,
-    selectedFile ? URL.createObjectURL(selectedFile) : null
+    selectedFile ? URL.createObjectURL(selectedFile) : null,
+    true
   );
 
   // Show loading indicator
@@ -41,7 +47,7 @@ async function sendMessage() {
 
     if (!uploadResp.ok) {
       console.error("Error uploading file:", await uploadResp.text());
-      addMessage("Error uploading image. Please try again.", false); // Display error to user
+      addMessage("Error uploading image. Please try again.", false, null, true);
       document.getElementById("loading-indicator").style.display = "none";
       removeImage();
       return;
@@ -80,7 +86,9 @@ async function sendMessage() {
     console.error("Error from backend:", await chatResp.text());
     addMessage(
       "Error communicating with the chatbot. Please try again.",
-      false
+      false,
+      null,
+      true
     );
     document.getElementById("loading-indicator").style.display = "none";
     return;
@@ -95,7 +103,7 @@ async function sendMessage() {
   // Hide loading indicator before displaying the message
   document.getElementById("loading-indicator").style.display = "none";
 
-  addMessage(assistantMessage, false); // Add assistant message to display and save
+  addMessage(assistantMessage, false, null, true);
 }
 
 // Function to format the assistant's message
@@ -163,42 +171,72 @@ function formatAssistantMessage(message) {
 }
 
 // Function to add a message to the chat and save to history
-let chatHistory =
-  JSON.parse(localStorage.getItem("optibot_chat_history")) || [];
+let chatHistory = [];
 
-function addMessage(message, isUser = false, imageUrl = null) {
+function addMessage(
+  message,
+  isUser = false,
+  imageUrl = null,
+  isNewMessage = false
+) {
   const chatbox = document.getElementById("chatbox");
   const messageDiv = document.createElement("div");
   messageDiv.className = `message ${
     isUser ? "user-message" : "assistant-message"
   }`;
 
-  let messageContent = "";
+  const avatarImg = document.createElement("img");
+  avatarImg.className = "avatar";
+  avatarImg.src = isUser ? USER_AVATAR : OPTIBOT_AVATAR;
+  avatarImg.alt = isUser ? "User Avatar" : "OptiBot Avatar";
+
+  const messageContentWrapper = document.createElement("div");
+  messageContentWrapper.className = "message-content-wrapper";
+
+  let messageContentHTML = "";
   if (imageUrl) {
-    messageContent += `<img src="${imageUrl}" style="max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 10px;">`;
+    messageContentHTML += `<img src="${imageUrl}" style="max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 10px;">`;
   }
 
   if (isUser) {
-    messageContent += message;
+    messageContentHTML += message;
   } else {
-    messageContent += formatAssistantMessage(message);
+    messageContentHTML += formatAssistantMessage(message);
   }
 
-  messageDiv.innerHTML = messageContent;
+  messageContentWrapper.innerHTML = messageContentHTML;
+
+  // Append avatar and message content wrapper to the message div
+  if (isUser) {
+    messageDiv.appendChild(messageContentWrapper);
+    messageDiv.appendChild(avatarImg);
+  } else {
+    messageDiv.appendChild(avatarImg);
+    messageDiv.appendChild(messageContentWrapper);
+  }
 
   chatbox.appendChild(messageDiv);
   chatbox.scrollTop = chatbox.scrollHeight;
 
-  // Save to history
-  chatHistory.push({ message: message, isUser: isUser, imageUrl: imageUrl });
-  localStorage.setItem("optibot_chat_history", JSON.stringify(chatHistory));
+  // Save to history ONLY if it's a new message
+  if (isNewMessage) {
+    chatHistory.push({ message: message, isUser: isUser, imageUrl: imageUrl });
+    localStorage.setItem("optibot_chat_history", JSON.stringify(chatHistory));
+  }
 }
 
 // Function to load chat history from localStorage
 function loadChatHistory() {
-  chatHistory.forEach((item) => {
-    addMessage(item.message, item.isUser, item.imageUrl);
-  });
+  const storedHistory = JSON.parse(
+    localStorage.getItem("optibot_chat_history")
+  );
+  if (storedHistory) {
+    chatHistory = storedHistory; // Update the global chatHistory array
+    document.getElementById("chatbox").innerHTML = ""; // Clear chatbox before loading
+    chatHistory.forEach((item) => {
+      addMessage(item.message, item.isUser, item.imageUrl, false); // Pass false for isNewMessage
+    });
+  }
 }
 
 // Speech recognition variables and functions
@@ -253,4 +291,14 @@ function toggleRecording() {
   } else {
     recognition.start();
   }
+}
+
+document
+  .getElementById("image-upload")
+  .addEventListener("change", function (event) {
+    // ... existing image-upload listener ...
+  });
+
+function removeImage() {
+  // ... existing removeImage function ...
 }
