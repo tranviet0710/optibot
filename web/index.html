@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>OptiBot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            Chat với OptiBot
+        </div>
+        <div id="chatbox"></div>
+        <div id="loading-indicator" class="loading-indicator" style="display: none;">
+            <span>●</span><span>●</span><span>●</span> Đang xử lý...
+        </div>
+        <div class="input-container">
+            <input type="text" id="user-input" placeholder="Nhập tin nhắn của bạn...">
+            <button onclick="sendMessage()">Gửi</button>
+            <label for="image-upload" class="upload-button">
+                <i class="fas fa-image"></i>
+            </label>
+            <input type="file" id="image-upload" accept="image/*" style="display: none;">
+            <button class="mic-button" id="micButton" onclick="toggleRecording()">
+                <i class="fas fa-microphone"></i>
+            </button>
+            <span class="status-indicator" id="statusIndicator"></span>
+        </div>
+        <div id="image-preview-container"
+            style="display: none; padding: 1rem; border-top: 1px solid #e5e7eb; background: #f9fafb;">
+            <img id="image-preview" src="#" alt="Image Preview"
+                style="max-width: 100px; max-height: 100px; margin-right: 10px;">
+            <span id="image-name"></span>
+            <button onclick="removeImage()">X</button>
+        </div>
+    </div>
+    <script src="main.js"></script>
+</body>
+
+</html>
