@@ -1,5 +1,6 @@
 let thread_id = null;
 let selectedFile = null;
+let autocompleteTimeout = null;
 
 const OPTIBOT_AVATAR =
   "https://optibot-assistant.optisigns.com/avatars/OptiBot";
@@ -21,12 +22,37 @@ window.onload = function () {
         sendMessage();
       }
     });
+
+  // Add event listener for input changes for autocompletion
+  document
+    .getElementById("user-input")
+    .addEventListener("input", handleAutocompleteInput);
+
+  // Hide autocompletion suggestions if clicking outside the input/suggestions
+  document.addEventListener("click", function (event) {
+    const inputContainer = document.getElementById(
+      "autocomplete-suggestions-container"
+    );
+    const userInput = document.getElementById("user-input");
+    if (
+      inputContainer &&
+      userInput &&
+      !inputContainer.contains(event.target) &&
+      !userInput.contains(event.target)
+    ) {
+      inputContainer.style.display = "none";
+    }
+  });
 };
 
 async function sendMessage() {
   const input = document.getElementById("user-input");
   const messageText = input.value;
   input.value = "";
+
+  // Hide autocompletion suggestions when a message is sent
+  document.getElementById("autocomplete-suggestions-container").style.display =
+    "none";
 
   // Add user message to display and save, with image preview if applicable
   addMessage(
@@ -121,6 +147,70 @@ async function sendMessage() {
 
   // After assistant responds, fetch suggested questions
   fetchSuggestedQuestions();
+}
+
+// Function to handle autocompletion input
+function handleAutocompleteInput(event) {
+  const input = event.target;
+  const prefix = input.value.trim();
+  const autocompleteContainer = document.getElementById(
+    "autocomplete-suggestions-container"
+  );
+  const autocompleteList = document.getElementById(
+    "autocomplete-suggestions-list"
+  );
+
+  if (autocompleteTimeout) {
+    clearTimeout(autocompleteTimeout);
+  }
+
+  if (prefix.length < 3) {
+    // Only fetch if at least 3 characters typed
+    autocompleteContainer.style.display = "none";
+    return;
+  }
+
+  autocompleteTimeout = setTimeout(async () => {
+    try {
+      const response = await fetch("/autocomplete_question", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ input_prefix: prefix }),
+      });
+
+      if (!response.ok) {
+        console.error("Error fetching autocompletions:", await response.text());
+        autocompleteContainer.style.display = "none";
+        return;
+      }
+
+      const data = await response.json();
+      const completions = data.completions;
+
+      autocompleteList.innerHTML = ""; // Clear previous completions
+      if (completions && completions.length > 0) {
+        completions.forEach((completionText) => {
+          const itemDiv = document.createElement("div");
+          itemDiv.className = "autocomplete-suggestion-item";
+          itemDiv.textContent = prefix + " " + completionText;
+          itemDiv.onclick = () => {
+            input.value = prefix + " " + completionText;
+            autocompleteContainer.style.display = "none";
+            input.focus(); // Keep focus on the input after selection
+          };
+          autocompleteList.appendChild(itemDiv);
+        });
+        autocompleteContainer.style.display = "block";
+      } else {
+        autocompleteContainer.style.display = "none";
+      }
+    } catch (error) {
+      console.error("Error in autocompletion fetch:", error);
+      autocompleteContainer.style.display = "none";
+    }
+  }, 300); // Debounce time: 300ms
 }
 
 // Function to format the assistant's message

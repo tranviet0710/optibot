@@ -436,6 +436,51 @@ button:hover {
     border-color: var(--suggestion-hover-border);
 }
 
+/* Autocompletion Suggestions Styles */
+#autocomplete-suggestions-container {
+    position: relative;
+    /* Or absolute/fixed depending on desired overlay behavior */
+    width: 100%;
+    z-index: 10;
+    /* Ensure it appears above other elements */
+    background: var(--chat-container-bg);
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 0 0 8px 8px;
+    /* Rounded bottom corners */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    /* Clip rounded corners */
+    flex-shrink: 0;
+    /* Ensure it doesn't shrink vertically */
+}
+
+#autocomplete-suggestions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    /* Small gap between suggestion items */
+    padding: 0.5rem 0;
+}
+
+.autocomplete-suggestion-item {
+    padding: 0.75rem 1.5rem;
+    /* Padding for each suggestion */
+    font-size: 0.95rem;
+    color: var(--assistant-message-text);
+    cursor: pointer;
+    background-color: var(--chat-container-bg);
+    /* Match container background */
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.autocomplete-suggestion-item:hover {
+    background-color: var(--input-bg);
+    /* Subtle highlight on hover */
+    color: var(--primary-color);
+}
+
 /* Scrollbar styling */
 #chatbox::-webkit-scrollbar {
     width: 6px;

@@ -109,6 +109,52 @@ app.post("/chat", async (req, res) => {
   }
 });
 
+// New endpoint for autocompletion suggestions
+app.post("/autocomplete_question", async (req, res) => {
+  const { input_prefix } = req.body;
+
+  if (!input_prefix) {
+    return res.status(400).json({ error: "Input prefix is required." });
+  }
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo", // Or 'gpt-4' for better quality
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an AI assistant for OptiSigns support. Your goal is to help users quickly formulate questions relevant to OptiSigns products, features, or troubleshooting. Provide concise, relevant question completions based on common OptiSigns inquiries and topics found in a knowledge base. Complete the user's sentence without extra conversational text, numbering, or greetings. Provide up to 5 diverse and helpful completions as a comma-separated list.",
+        },
+        {
+          role: "user",
+          content: `Complete the following question: "${input_prefix}`,
+        },
+      ],
+      temperature: 0.5, // Lower temperature for more focused completions
+      max_tokens: 50, // Max tokens for completion length
+    });
+
+    const completionsText = completion.choices[0].message.content;
+    const completions = completionsText
+      .split(/[\n\?]/)
+      .map(
+        (s) =>
+          s
+            .trim()
+            .replace(/^["',\s\\]+/, "") // remove leading ", \ or whitespace
+            .replace(/["',\s\\]+$/, "") // remove trailing ", \ or whitespace
+            .replace(/^\d+\.\s*/, "") // remove leading numbering like 1.
+      )
+      .filter((s) => s.length > 0);
+
+    res.json({ completions: completions });
+  } catch (error) {
+    console.error("Error generating autocompletions:", error);
+    res.status(500).json({ error: "Failed to generate autocompletions." });
+  }
+});
+
 // New endpoint to suggest questions
 app.post("/suggest_questions", async (req, res) => {
   const chatHistory = req.body.history; // Array of {role: 'user'|'assistant', content: 'text'} objects
