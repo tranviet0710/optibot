@@ -312,7 +312,7 @@ async function fetchSuggestedQuestions() {
       suggestions.forEach((s) => {
         // Split each suggestion string by newline to handle multiple questions in one string
         const individualSuggestions = s
-          .split("\n")
+          .split(/\n|\?/g) // tách bằng \n hoặc ?
           .map((item) => item.trim())
           .filter((item) => item.length > 0);
 
@@ -410,3 +410,27 @@ document
 function removeImage() {
   // ... existing removeImage function ...
 }
+
+// Theme switching logic
+const themeToggle = document.getElementById("theme-toggle");
+
+function setTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("theme", theme);
+  themeToggle.checked = theme === "dark";
+}
+
+// Load saved theme on page load
+document.addEventListener("DOMContentLoaded", () => {
+  const savedTheme = localStorage.getItem("theme") || "light"; // Default to light
+  setTheme(savedTheme);
+});
+
+// Event listener for theme toggle
+themeToggle.addEventListener("change", (event) => {
+  if (event.target.checked) {
+    setTheme("dark");
+  } else {
+    setTheme("light");
+  }
+});
