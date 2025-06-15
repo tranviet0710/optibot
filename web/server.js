@@ -109,6 +109,50 @@ app.post("/chat", async (req, res) => {
   }
 });
 
+// New endpoint to suggest questions
+app.post("/suggest_questions", async (req, res) => {
+  const chatHistory = req.body.history; // Array of {role: 'user'|'assistant', content: 'text'} objects
+
+  if (!chatHistory || chatHistory.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "Chat history is required for suggestions." });
+  }
+
+  // Create a simple prompt for suggested questions based on history
+  const messages = chatHistory.map((msg) => ({
+    role: msg.isUser ? "user" : "assistant",
+    content: msg.message,
+  }));
+
+  messages.push({
+    role: "user",
+    content:
+      "Based on the conversation so far, suggest 3 concise, relevant follow-up questions for the user to ask. Provide them as a comma-separated list without numbering or extra text.", // Prompt to get concise suggestions
+  });
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo", // Or "gpt-4" for better quality
+      messages: messages,
+      temperature: 0.7,
+      max_tokens: 100,
+    });
+
+    const suggestionsText = completion.choices[0].message.content;
+    // Parse suggestions from comma-separated string to array
+    const suggestions = suggestionsText
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    res.json({ suggestions: suggestions });
+  } catch (error) {
+    console.error("Error generating suggestions:", error);
+    res.status(500).json({ error: "Failed to generate suggestions." });
+  }
+});
+
 // Serve index.html for the root path
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
@@ -117,7 +161,4 @@ app.get("/", (req, res) => {
 // Start the server
 app.listen(port, () => {
   console.log(`Node.js server listening at http://localhost:${port}`);
-  console.log(
-    "Please ensure your .env file in the 'web/' directory contains OPENAI_API_KEY and OPENAI_ASSISTANT_ID."
-  );
 });

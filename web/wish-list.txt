@@ -1,0 +1,6 @@
+- Hiểu ý định người dùng (intent)
+- Gợi ý câu hỏi cho người dùng ✅
+- Nhận thông báo cập nhật qua chatbot
+- Kết nối với các nền tảng khác (FB, Zalo, Tele)
+- Thay đổi giao diện, theme 
+- Lưu câu hỏi người dùng, để thu thập dữ liệu giúp bot thông minh hơn

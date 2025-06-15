@@ -26,6 +26,10 @@ async function sendMessage() {
     true
   );
 
+  // Hide suggested questions when a new message is sent
+  document.getElementById("suggested-questions-container").style.display =
+    "none";
+
   // Show loading indicator
   document.getElementById("loading-indicator").style.display = "flex";
 
@@ -104,6 +108,9 @@ async function sendMessage() {
   document.getElementById("loading-indicator").style.display = "none";
 
   addMessage(assistantMessage, false, null, true);
+
+  // After assistant responds, fetch suggested questions
+  fetchSuggestedQuestions();
 }
 
 // Function to format the assistant's message
@@ -131,10 +138,32 @@ function formatAssistantMessage(message) {
   // Create the formatted message
   let formattedMessage = '<div class="message-content">';
 
-  // Process content with nested bullet points
+  // Process content with nested bullet points or as question suggestions
   content.forEach((line) => {
     if (line.trim()) {
-      if (line.startsWith("- ")) {
+      // Check if the line contains multiple questions, separated by '?'
+      const questions = line
+        .split("?")
+        .map((q) => q.trim())
+        .filter((q) => q.length > 0);
+
+      // If it looks like a list of questions, render each as a button
+      if (
+        questions.length > 1 ||
+        (questions.length === 1 &&
+          line.endsWith("?") &&
+          !line.startsWith("- ") &&
+          !line.startsWith("  - "))
+      ) {
+        formattedMessage += '<div class="assistant-suggestions-wrapper">';
+        questions.forEach((q) => {
+          formattedMessage += `
+              <p>
+                ${q}?
+              </p>`;
+        });
+        formattedMessage += "</div>";
+      } else if (line.startsWith("- ")) {
         // Main bullet point
         formattedMessage += `<div class="bullet-point">${line.substring(
           2
@@ -171,7 +200,8 @@ function formatAssistantMessage(message) {
 }
 
 // Function to add a message to the chat and save to history
-let chatHistory = [];
+let chatHistory =
+  JSON.parse(localStorage.getItem("optibot_chat_history")) || [];
 
 function addMessage(
   message,
@@ -236,6 +266,84 @@ function loadChatHistory() {
     chatHistory.forEach((item) => {
       addMessage(item.message, item.isUser, item.imageUrl, false); // Pass false for isNewMessage
     });
+  }
+}
+
+// Function to fetch and display suggested questions
+async function fetchSuggestedQuestions() {
+  const suggestionsContainer = document.getElementById(
+    "suggested-questions-container"
+  );
+  const suggestionsList = document.getElementById("suggestions-list");
+  suggestionsList.innerHTML = ""; // Clear previous suggestions
+
+  try {
+    // Filter chat history to only include text messages for suggestion generation
+    const historyForSuggestions = chatHistory
+      .filter((item) => item.message && typeof item.message === "string")
+      .map((item) => ({
+        role: item.isUser ? "user" : "assistant",
+        message: item.message,
+      }));
+
+    if (historyForSuggestions.length === 0) {
+      suggestionsContainer.style.display = "none";
+      return;
+    }
+
+    const response = await fetch("/suggest_questions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ history: historyForSuggestions }),
+    });
+
+    if (!response.ok) {
+      console.error("Error fetching suggestions:", await response.text());
+      suggestionsContainer.style.display = "none";
+      return;
+    }
+
+    const data = await response.json();
+    const suggestions = data.suggestions;
+
+    if (suggestions && suggestions.length > 0) {
+      suggestions.forEach((s) => {
+        // Split each suggestion string by newline to handle multiple questions in one string
+        const individualSuggestions = s
+          .split("\n")
+          .map((item) => item.trim())
+          .filter((item) => item.length > 0);
+
+        individualSuggestions.forEach((questionText) => {
+          // Remove leading "- " if present
+          let cleanQuestion = questionText.startsWith("- ")
+            ? questionText.substring(2).trim()
+            : questionText.trim();
+          // Remove trailing '?' if present, to ensure it's added consistently later
+          cleanQuestion = cleanQuestion.endsWith("?")
+            ? cleanQuestion.slice(0, -1)
+            : cleanQuestion;
+
+          const button = document.createElement("button");
+          button.className = "suggestion-button";
+          // Add the '?' back for display and when sending
+          button.textContent = cleanQuestion + "?";
+          button.onclick = () => {
+            document.getElementById("user-input").value = cleanQuestion + "?";
+            sendMessage(); // Send the suggested question
+          };
+          suggestionsList.appendChild(button);
+        });
+      });
+      suggestionsContainer.style.display = "flex";
+    } else {
+      suggestionsContainer.style.display = "none";
+    }
+  } catch (error) {
+    console.error("Error in fetchSuggestedQuestions:", error);
+    suggestionsContainer.style.display = "none";
   }
 }
 
