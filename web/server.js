@@ -30,8 +30,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-// Serve static files from the current directory (web/)
-app.use(express.static(__dirname));
+// Serve static files from the 'public' directory within the current directory (web/public/)
 app.use(express.static(path.join(__dirname, "public")));
 
 // Endpoint to handle file uploads to OpenAI
@@ -154,7 +153,7 @@ app.post("/suggest_questions", async (req, res) => {
   }
 });
 
-// Serve index.html for the root path
+// Serve index.html for the root path from the 'public' directory
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
