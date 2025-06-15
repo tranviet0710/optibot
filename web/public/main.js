@@ -11,6 +11,16 @@ window.onload = function () {
   thread_id = localStorage.getItem("optibot_thread_id");
   initSpeechRecognition();
   loadChatHistory(); // Load chat history when the page loads
+
+  // Add event listener for Enter key on user-input
+  document
+    .getElementById("user-input")
+    .addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault(); // Prevent default Enter key behavior (e.g., new line)
+        sendMessage();
+      }
+    });
 };
 
 async function sendMessage() {
