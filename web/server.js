@@ -32,6 +32,7 @@ app.use(express.json());
 
 // Serve static files from the current directory (web/)
 app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, "public")));
 
 // Endpoint to handle file uploads to OpenAI
 app.post("/upload_file", upload.single("file"), async (req, res) => {
@@ -155,7 +156,7 @@ app.post("/suggest_questions", async (req, res) => {
 
 // Serve index.html for the root path
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // Start the server
